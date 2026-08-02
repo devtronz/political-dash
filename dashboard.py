@@ -39,10 +39,15 @@ st.markdown("""
 
 # --- 3. API CONFIGURATION ---
 try:
-    # Uses secrets if on Streamlit Cloud, fallback to empty string if missing
-    FREE_GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]except Exception:
+    # Fetch the API key securely from Streamlit Secrets
+    FREE_GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+    
+    # Configure the AI engine with the key
+    genai.configure(api_key=FREE_GEMINI_API_KEY)
+    
+except Exception:
     st.error("⚠️ API Key not found. Please configure st.secrets.")
-
+    
 # --- 4. CORE FUNCTIONS ---
 @st.cache_data(ttl=900) # Caches data for 15 mins so you don't spam the RSS/API
 def fetch_local_political_news(area):
