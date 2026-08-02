@@ -1,164 +1,241 @@
 import streamlit as st
 import feedparser
 import google.generativeai as genai
+import pandas as pd
+import plotly.express as px
 import urllib.parse
 from datetime import datetime
 
-# --- 1. PAGE CONFIGURATION ---
+# -----------------------------
+# PAGE CONFIG
+# -----------------------------
 st.set_page_config(
-    page_title="OSINT Political Desk", 
-    page_icon="🌍", 
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="OSINT Political Desk",
+    page_icon="🌍",
+    layout="wide"
 )
 
-# --- 2. CUSTOM CSS FOR PROFESSIONAL LOOK ---
+# -----------------------------
+# CUSTOM CSS
+# -----------------------------
 st.markdown("""
-    <style>
-    /* Hide Streamlit default menu and footer for a whitelabeled look */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    
-    /* Style the AI report box */
-    .report-box {
-        background-color: #1E1E1E;
-        padding: 20px;
-        border-radius: 8px;
-        border-left: 5px solid #0052cc;
-        color: #FFFFFF;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    }
-    
-    /* Clean up top padding */
-    .block-container {
-        padding-top: 2rem;
-        padding-bottom: 0rem;
-    }
-    </style>
+<style>
+
+#MainMenu {visibility:hidden;}
+footer {visibility:hidden;}
+
+.main-title{
+    font-size:40px;
+    font-weight:bold;
+    color:#4da6ff;
+}
+
+.report{
+    background:#111827;
+    padding:20px;
+    border-radius:10px;
+    border-left:5px solid #3b82f6;
+}
+
+</style>
 """, unsafe_allow_html=True)
 
-# --- 3. API CONFIGURATION ---
-try:
-    # Fetch the API key securely from Streamlit Secrets
-    FREE_GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
-    
-    # Configure the AI engine with the key
-    genai.configure(api_key=FREE_GEMINI_API_KEY)
-    
-except Exception:
-    st.error("⚠️ API Key not found. Please configure st.secrets.")
-    
-# --- 4. CORE FUNCTIONS ---
-@st.cache_data(ttl=900) # Caches data for 15 mins so you don't spam the RSS/API
-def fetch_local_political_news(area):
-    """Fetches top 15 news articles using Google News RSS"""
-    query = f"politics {area}"
-    safe_query = urllib.parse.quote(query)
-    url = f"https://news.google.com/rss/search?q={safe_query}&hl=en-US&gl=US&ceid=US:en"
-    
+# -----------------------------
+# GEMINI
+# -----------------------------
+genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+
+# -----------------------------
+# FUNCTIONS
+# -----------------------------
+@st.cache_data(ttl=900)
+def fetch_news(area):
+
+    query = urllib.parse.quote(f"politics {area}")
+
+    url = f"https://news.google.com/rss/search?q={query}"
+
     feed = feedparser.parse(url)
-    articles = []
-    
-    for entry in feed.entries[:15]:
-        articles.append({
-            "title": entry.title,
-            "link": entry.link,
-            "published": entry.published,
-            "source": entry.source.title if hasattr(entry, 'source') else "Unknown"
+
+    news = []
+
+    for article in feed.entries[:15]:
+        news.append({
+            "Title": article.title,
+            "Source": getattr(article.source, "title", "Unknown"),
+            "Published": article.published,
+            "Link": article.link
         })
-    return articles
+
+    return news
+
 
 @st.cache_data(ttl=900)
-def generate_intelligence_brief(area, articles):
-    """Generates an executive summary using Gemini"""
-    if not articles:
-        return "No data available."
-    
-    headlines = "\n".join([f"- {a['title']} ({a['source']})" for a in articles])
-    
+def ai_report(area, news):
+
+    headlines = "\n".join(
+        [f"- {n['Title']}" for n in news]
+    )
+
     prompt = f"""
-    You are an expert OSINT political analyst. Review the following recent headlines for {area}.
-    Provide a professional, executive-level intelligence brief. Format it beautifully using Markdown.
-    Include these exact headers:
-    
-    ### 🎯 Executive Summary
-    (2-3 sentences summarizing the current political landscape)
-    
-    ### 🏛️ Key Entities Involved
-    (Bullet points of politicians, parties, or groups mentioned)
-    
-    ### ⚠️ Emerging Storylines
-    (Bullet points of the main political issues or conflicts)
-    
-    Headlines:
-    {headlines}
-    """
-    
-    try:
-        model = genai.GenerativeModel('gemini-3.5-flash')
-        response = model.generate_content(prompt)
-        return response.text
-    except Exception as e:
-        return f"Error connecting to AI: {str(e)}"
+You are a senior political intelligence analyst.
 
-# --- 5. SIDEBAR UI (CONTROLS) ---
+Analyze these headlines from {area}.
+
+Return:
+
+# Executive Summary
+
+# Key Political Actors
+
+# Emerging Risks
+
+# Next Developments
+
+{headlines}
+"""
+
+    model = genai.GenerativeModel("gemini-3.5-flash")
+
+    return model.generate_content(prompt).text
+
+
+# -----------------------------
+# SIDEBAR
+# -----------------------------
 with st.sidebar:
-    st.image("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSUXvnh-SmrmHJx082np38zckrvMjw0iVTsdTYILjMZ2Q&s=10", width=60)
-    st.title("Target Parameters")
-    st.markdown("Configure your intelligence scan below.")
-    
-    area = st.text_input("📍 Target Area (City/State/Country):", "Meerut")
-    
-    run_scan = st.button("🚀 Initialize Scan", use_container_width=True, type="primary")
-    
+
+    st.title("🛰 Intelligence")
+
+    area = st.text_input(
+        "Target Area",
+        "Meerut"
+    )
+
+    run = st.button("🚀 Scan")
+
     st.divider()
-    st.caption("Status: Secure Connection established.")
-    st.caption(f"System Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-# --- 6. MAIN DASHBOARD UI ---
-st.title(f"🌍 OSINT Political Desk: {area.upper()}")
-st.markdown("Real-time open-source intelligence monitoring and automated AI analysis.")
+    st.write(datetime.now())
+
+
+# -----------------------------
+# HEADER
+# -----------------------------
+st.markdown(
+    '<p class="main-title">🌍 OSINT Political Desk</p>',
+    unsafe_allow_html=True
+)
+
+st.caption("Open Source Political Intelligence Dashboard")
+
+# -----------------------------
+# LOAD
+# -----------------------------
+if run:
+
+    with st.spinner("Scanning sources..."):
+
+        news = fetch_news(area)
+
+        report = ai_report(area, news)
+
+    # -------------------------
+    # METRICS
+    # -------------------------
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    c1.metric("Articles", len(news))
+    c2.metric("Sources", len(set(n["Source"] for n in news)))
+    c3.metric("Status", "LIVE")
+    c4.metric("Threat", "🟡 Medium")
+
+    st.divider()
+
+    # -------------------------
+    # TABS
+    # -------------------------
+
+    tab1, tab2, tab3 = st.tabs([
+        "🧠 AI Report",
+        "📊 Analytics",
+        "📰 News Feed"
+    ])
+
+    # -------------------------
+    # AI REPORT
+    # -------------------------
+
+    with tab1:
+
+        st.markdown(
+            f'<div class="report">{report}</div>',
+            unsafe_allow_html=True
+        )
+
+        st.download_button(
+            "Download Report",
+            report,
+            file_name="report.md"
+        )
+
+    # -------------------------
+    # CHART
+    # -------------------------
+
+    with tab2:
+
+        df = pd.DataFrame(news)
+
+        chart = (
+            df["Source"]
+            .value_counts()
+            .reset_index()
+        )
+
+        chart.columns = ["Source", "Articles"]
+
+        fig = px.bar(
+            chart,
+            x="Source",
+            y="Articles",
+            title="Articles by Source"
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+    # -------------------------
+    # NEWS
+    # -------------------------
+
+    with tab3:
+
+        search = st.text_input("Search Headlines")
+
+        for article in news:
+
+            if search.lower() in article["Title"].lower():
+
+                with st.expander(article["Title"]):
+
+                    st.write("**Source:**", article["Source"])
+
+                    st.write("**Published:**", article["Published"])
+
+                    st.link_button(
+                        "Read Article",
+                        article["Link"]
+                    )
+
+# -----------------------------
+# FOOTER
+# -----------------------------
 st.divider()
 
-if run_scan or area:
-    with st.spinner(f"Intercepting signals for {area}..."):
-        articles = fetch_local_political_news(area)
-        
-        if articles:
-            # Dashboard Metrics Row
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                st.metric(label="📡 Sources Scanned", value=len(articles))
-            with col2:
-                st.metric(label="🕒 Latest Intel", value="Just Now", delta="Live")
-            with col3:
-                st.metric(label="🧠 AI Status", value="Active", delta="Ready", delta_color="normal")
-            
-            st.write("") # Spacer
-            
-            # Use Tabs to separate AI Analysis from Raw Data
-            tab1, tab2 = st.tabs(["🧠 AI Intelligence Brief", "📰 Raw Signal Feed (Links)"])
-            
-            with tab1:
-                ai_brief = generate_intelligence_brief(area, articles)
-                # Displaying the AI output inside a styled HTML div
-                st.markdown(f'<div class="report-box">{ai_brief}</div>', unsafe_allow_html=True)
-                
-            with tab2:
-                # Display raw data neatly
-                for i, article in enumerate(articles):
-                    with st.expander(f"🔹 {article['title']}"):
-                        st.write(f"**Source:** {article['source']}")
-                        st.write(f"**Published:** {article['published']}")
-                        st.markdown(f"[🔗 Read Full Source Article]({article['link']})")
-        else:
-            st.warning(f"No recent political signals detected for {area}.")
-
-
-# --- FOOTER / DISCLAIMER ---
-st.divider()
 st.caption("""
-**Disclaimer:** This is a public Open Source Intelligence (OSINT) dashboard. 
-The executive summaries are generated automatically by AI (Google Gemini) based on recent RSS news feeds. 
-Always verify political news with the raw source links provided in the 'Raw Signal Feed' tab.
+This dashboard uses public RSS news feeds and Google Gemini AI to generate political intelligence summaries. Always verify information with the original news sources.
 """)
