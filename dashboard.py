@@ -103,7 +103,7 @@ def generate_intelligence_brief(area, articles):
 
 # --- 5. SIDEBAR UI (CONTROLS) ---
 with st.sidebar:
-    st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Map_icons_by_Marius_Fiskum_16.svg/1024px-Map_icons_by_Marius_Fiskum_16.svg.png", width=60)
+    st.image("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSUXvnh-SmrmHJx082np38zckrvMjw0iVTsdTYILjMZ2Q&s=10", width=60)
     st.title("Target Parameters")
     st.markdown("Configure your intelligence scan below.")
     
