@@ -40,9 +40,7 @@ st.markdown("""
 # --- 3. API CONFIGURATION ---
 try:
     # Uses secrets if on Streamlit Cloud, fallback to empty string if missing
-    FREE_GEMINI_API_KEY = st.secrets.get("GEMINI_API_KEY", "YOUR_GEMINI_API_KEY_HERE")
-    genai.configure(api_key=FREE_GEMINI_API_KEY)
-except Exception:
+    FREE_GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]except Exception:
     st.error("⚠️ API Key not found. Please configure st.secrets.")
 
 # --- 4. CORE FUNCTIONS ---
