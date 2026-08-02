@@ -150,3 +150,12 @@ if run_scan or area:
                         st.markdown(f"[🔗 Read Full Source Article]({article['link']})")
         else:
             st.warning(f"No recent political signals detected for {area}.")
+
+
+# --- FOOTER / DISCLAIMER ---
+st.divider()
+st.caption("""
+**Disclaimer:** This is a public Open Source Intelligence (OSINT) dashboard. 
+The executive summaries are generated automatically by AI (Google Gemini) based on recent RSS news feeds. 
+Always verify political news with the raw source links provided in the 'Raw Signal Feed' tab.
+""")
